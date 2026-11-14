@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SafarGo – Bus Booking</title>
+<style>
+/* COLOR SCHEME: analogous (navy blue + teal), 60-30-10 rule
+   60% neutrals: white + sky | 30% primary: navy | 10% accent: teal (buttons, selected seats)
+   Semantic colors: green = success, red = error/warning */
+:root{--navy:#17324d;--head:#17324d;--link:#0b7f77;--on-bad:#fff;--surface:#fff;--page:#eaf2f8;--stripe:#e9eff4;--bad-tint:#fdf1ef;--rose:#b03a78;--rose-tint:#fbeaf3;--accent:#0b7f77;--accent-light:#3cc9b8;--accent-tint:#e4f4f2;--on-accent:#ffffff;--sky:#eaf2f8;--ink:#1c2630;--mute:#5d6b78;--line:#d5e0e9;--ok:#1f8a5b;--bad:#c2392b;--white:#fff}
+*{box-sizing:border-box;margin:0}
+body{font-family:'Poppins',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--page);color:var(--ink);display:flex;justify-content:center;min-height:100vh}
+.app{width:100%;max-width:1120px;background:var(--surface);min-height:100vh;position:relative;box-shadow:0 0 30px rgba(23,50,77,.12)}
+header{position:sticky;top:0;z-index:5;background:var(--navy);color:var(--white);padding:12px 16px;display:flex;align-items:center;gap:14px}
+header[hidden]{display:none}
+.back{background:none;border:0;color:var(--white);font:inherit;font-size:15px;cursor:pointer;padding:6px 4px}
+.steps{flex:1;font-size:12px}.bar{height:6px;background:rgba(255,255,255,.25);border-radius:6px;margin-top:5px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent-light);width:0;transition:width .3s}
+main{padding:20px 18px 40px}
+.screen{display:none}.screen.active{display:block}
+h1{font-size:34px;color:var(--head)}h2{font-size:21px;color:var(--head);margin-bottom:4px}
+.sub{color:var(--mute);font-size:14px;margin-bottom:14px}.c{text-align:center}
+.hero{background:var(--navy);color:var(--white);margin:-20px -18px 20px;padding:48px 22px 60px;border-radius:0 0 28px 28px}
+.hero h1{color:var(--accent-light)}.hero p{opacity:.85;margin-top:4px}
+.card{margin-top:-52px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:grid;gap:12px;position:relative}
+#s4 .card,#s1 .card{box-shadow:0 6px 18px rgba(23,50,77,.1)}
+#s4 .card{margin-top:8px}
+label{display:grid;gap:5px;font-size:13px;font-weight:600;color:var(--head)}
+input,select{font:inherit;font-size:15px;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);width:100%}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.swap{justify-self:end;margin:-6px 0;border:1.5px solid var(--line);background:var(--sky);border-radius:50%;width:36px;height:36px;font-size:16px;cursor:pointer}
+.err{color:var(--bad);font-size:12px;min-height:0;display:block}
+.btn{font:inherit;font-weight:600;font-size:16px;background:var(--accent);color:var(--on-accent);border:0;border-radius:12px;padding:14px;cursor:pointer;width:100%;margin-top:6px}
+.btn:hover:not(:disabled){filter:brightness(1.1)}.btn:disabled{background:var(--line);color:var(--mute);cursor:not-allowed}
+.btn.load::after{content:"";display:inline-block;width:14px;height:14px;margin-left:8px;border:2px solid var(--on-accent);border-right-color:transparent;border-radius:50%;vertical-align:-2px;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.chips{display:flex;gap:8px;margin-bottom:12px}
+.chip{font:inherit;font-size:13px;border:1.5px solid var(--line);background:var(--surface);border-radius:20px;padding:6px 14px;cursor:pointer}
+.chip.on{background:var(--navy);color:var(--white);border-color:var(--head)}
+.bus-card{border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.bus-card .row{display:flex;justify-content:space-between;align-items:center}
+.bus-card b{color:var(--head)}.tag{font-size:11px;background:var(--sky);color:var(--head);padding:3px 8px;border-radius:10px}
+.times{font-size:15px;margin:10px 0}.times small{color:var(--mute)}
+.left{font-size:12px;color:var(--bad)}.price{font-size:18px;font-weight:700;color:var(--head)}
+.sel-btn{font:inherit;font-weight:600;background:var(--navy);color:var(--white);border:0;border-radius:10px;padding:9px 16px;cursor:pointer}
+.legend{display:flex;gap:14px;font-size:12px;margin-bottom:10px;color:var(--mute)}.legend span{display:flex;align-items:center;gap:5px}
+.seat{display:inline-block;width:34px;height:34px;border:1.5px solid var(--head);border-radius:8px 8px 4px 4px;background:var(--surface);font:inherit;font-size:11px;cursor:pointer;color:var(--head)}
+.legend .seat{width:18px;height:18px;cursor:default}
+.seat.sel{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.seat.booked{background:repeating-linear-gradient(45deg,var(--line),var(--line) 4px,var(--stripe) 4px,var(--stripe) 8px);border-color:var(--line);color:var(--mute);cursor:not-allowed}
+.bus{border:2px solid var(--line);border-radius:20px;padding:12px 18px 16px;margin-bottom:12px}
+.driver{text-align:right;font-size:12px;color:var(--mute);margin-bottom:10px}
+#seatGrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;justify-items:center}
+.summary{display:flex;justify-content:space-between;align-items:center;background:var(--sky);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:8px}
+.summary.col{display:grid;gap:6px;margin-bottom:14px}.summary.col div{display:flex;justify-content:space-between}
+.pay{display:grid;gap:10px}
+.opt{display:flex;align-items:center;gap:10px;border:1.5px solid var(--line);border-radius:12px;padding:14px;font-weight:500;cursor:pointer}
+.opt.on{border-color:var(--accent);background:var(--accent-tint)}.opt input{width:auto}
+.done{width:64px;height:64px;border-radius:50%;background:var(--ok);color:var(--white);font-size:34px;display:grid;place-items:center;margin:10px auto 12px}
+.ticket{border:2px dashed var(--head);border-radius:16px;padding:16px;margin:12px 0 16px;display:grid;gap:9px;font-size:14px}
+.ticket div{display:flex;justify-content:space-between;gap:10px}.ticket span{color:var(--mute)}.ticket b{text-align:right;color:var(--head)}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);background:var(--navy);color:var(--white);padding:11px 18px;border-radius:24px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;max-width:90%;z-index:9}
+#toast.show{opacity:1;transform:translate(-50%,0)}#toast.bad{background:var(--bad)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:.01s!important}}
+
+.req{color:var(--bad);font-weight:700}
+.note{font-size:12px;color:var(--mute)}
+input.invalid{border-color:var(--bad);background:var(--bad-tint)}
+
+/* ---------- Website (desktop) layout ---------- */
+#s4,#s5,#s6{max-width:620px;margin-left:auto;margin-right:auto}
+@media (max-width:899px){.app{max-width:560px}}
+@media (min-width:900px){
+  body{padding:28px 20px;align-items:flex-start}
+  .app{min-height:0;border-radius:20px;overflow:hidden}
+  header{padding:16px 40px}
+  .steps{max-width:520px}
+  .back{font-size:16px}
+  main{padding:40px 48px 56px}
+  h2{font-size:26px}
+  .sub{font-size:15px;margin-bottom:20px}
+
+  /* 1. search: hero left, form right */
+  #s1.active{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center;min-height:520px}
+  .hero{margin:0;padding:64px 44px;border-radius:22px}
+  .hero h1{font-size:56px}.hero p{font-size:19px;margin-top:10px}
+  #s1 .card{margin-top:0;padding:28px}
+
+  /* 2. results: two columns of bus cards */
+  #busList{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .bus-card{margin-bottom:0;padding:18px}
+
+  /* 3. seats: map on the left, summary on the right */
+  #s3.active{display:grid;grid-template-columns:minmax(300px,420px) 1fr;column-gap:56px;align-content:start}
+  #s3 h2,#s3 .sub{grid-column:1/-1}
+  #s3 .bus{grid-column:1;grid-row:3/span 4;margin-bottom:0}
+  #s3 .legend,#s3 .summary,#s3 #seatNext{grid-column:2}
+  #s3 .legend{font-size:14px;align-self:start}
+  #s3 .summary{align-self:start;font-size:16px;padding:16px}
+  #s3 #seatNext{align-self:start;max-width:360px}
+  .seat{width:44px;height:44px;font-size:12px}
+  .legend .seat{width:20px;height:20px}
+}
+
+/* ---------- Dark mode ---------- */
+[data-theme="dark"]{color-scheme:dark;--navy:#1d4066;--head:#e6edf3;--surface:#141c26;--page:#0b1017;--sky:#1c2836;--ink:#e6edf3;--mute:#9aa8b6;--line:#2c3a49;--stripe:#222f3d;--bad:#ff7b6b;--bad-tint:#3a1f1c;--ok:#3ecf8e;--accent-tint:#12322f;--rose:#f08cc0;--rose-tint:#3a2030}
+.theme{position:absolute;top:12px;right:14px;z-index:7;width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);background:var(--navy);color:#fff;font-size:17px;cursor:pointer}
+header{padding-right:64px}
+@media (min-width:900px){header{padding:16px 72px 16px 40px}.theme{top:16px;right:24px}}
+
+/* ---------- Ladies-only seats ---------- */
+.seat{position:relative}
+.seat.ladies:not(.sel):not(.booked){border-color:var(--rose);background:var(--rose-tint);color:var(--rose)}
+.seat.ladies::after{content:"♀";position:absolute;top:-7px;right:-5px;width:15px;height:15px;line-height:15px;font-size:11px;border-radius:50%;background:var(--surface);color:var(--rose)}
+.legend .seat.ladies::after{display:none}
+.legend{flex-wrap:wrap}
+
+.seat.blocked{opacity:.4;border-style:dashed;cursor:not-allowed}
+.sel-btn:disabled{background:var(--line);color:var(--mute);cursor:not-allowed}
+
+/* ---------- Cancel booking ---------- */
+[data-theme="dark"]{--link:#3cc9b8;--on-bad:#1b0c0a}
+#s7{max-width:620px;margin-left:auto;margin-right:auto}
+#s7 .card{margin-top:8px;box-shadow:0 6px 18px rgba(23,50,77,.1)}
+.link{background:none;border:0;color:var(--link);font:inherit;font-size:14px;font-weight:600;text-decoration:underline;cursor:pointer;padding:8px 0;justify-self:start}
+.btn.danger{background:transparent;color:var(--bad);border:2px solid var(--bad)}
+.btn.danger.solid{background:var(--bad);color:var(--on-bad)}
+.btn.ghost{background:transparent;color:var(--head);border:2px solid var(--line)}
+.btn.danger.load::after{border-color:var(--on-bad);border-right-color:transparent}
+.badge{border:1.5px solid currentColor;border-radius:12px;padding:1px 10px;font-size:12px}
+.badge.ok{color:var(--ok)!important}.badge.bad{color:var(--bad)!important}
+.ticket.cancelled{border-color:var(--bad)}
+.done.bad{background:var(--bad);color:var(--on-bad)}
+.err-box{background:var(--bad-tint);color:var(--bad);border-radius:12px;padding:12px 14px;font-size:14px;margin-top:14px}
+#found .btn{margin-top:0}
+.modal{position:fixed;inset:0;background:rgba(5,12,20,.6);display:grid;place-items:center;padding:18px;z-index:20}
+.modal[hidden]{display:none}
+.box{background:var(--surface);color:var(--ink);border-radius:16px;padding:22px;max-width:440px;width:100%;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.box h3{color:var(--head);font-size:20px;margin-bottom:8px}
+.box ul{margin:10px 0 12px 18px;font-size:13px;color:var(--mute);display:grid;gap:3px}
+.refund{background:var(--sky);border-radius:12px;padding:12px 14px;font-size:14px;display:grid;gap:4px}
+.mbtns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}.mbtns .btn{margin-top:0}
+
+/* ---------- Print ticket ---------- */
+#found{display:grid;gap:10px}
+#printArea{display:none}
+@media print{
+  @page{margin:14mm}
+  [data-theme="dark"]{color-scheme:light}
+  body{background:#fff;display:block;padding:0;min-height:0}
+  .app,.modal,#toast{display:none!important}
+  #printArea{display:block}
+  .pt{font-family:'Poppins',system-ui,'Segoe UI',sans-serif;color:#111;border:2px solid #17324d;border-radius:14px;padding:22px;max-width:640px;margin:0 auto;position:relative}
+  .pt-head{display:flex;justify-content:space-between;align-items:center;border-bottom:2px dashed #17324d;padding-bottom:12px;margin-bottom:16px}
+  .pt-head b{font-size:28px;color:#17324d}.pt-head span{font-weight:700;letter-spacing:2px;color:#0b7f77}
+  .pt-route{font-size:26px;font-weight:700;color:#17324d}
+  .pt-id{margin:6px 0 16px;font-size:16px;font-weight:600}
+  .pt-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 24px}
+  .pt-grid div{display:grid;border-bottom:1px solid #c9d3dc;padding-bottom:6px}
+  .pt-grid span{font-size:11px;text-transform:uppercase;color:#555}.pt-grid b{font-size:15px}
+  .pt-note{margin:18px 0 0 18px;font-size:12px;color:#333;display:grid;gap:4px}
+  .pt-foot{margin-top:16px;font-size:11px;color:#666;text-align:center}
+  .pt-stamp{position:absolute;top:86px;right:24px;border:3px solid #c2392b;color:#c2392b;font-weight:800;font-size:22px;padding:4px 14px;transform:rotate(-8deg);border-radius:6px}
+}
+
+.bus-card.gone{opacity:.6}
+.bus-card.gone .left{color:var(--mute)}
+
+/* ---------- Paid / Unpaid stamp ---------- */
+.ticket .stamp-wrap{justify-content:center;padding:2px 0}
+.stamp{display:inline-block;border:3px solid currentColor;border-radius:8px;padding:2px 20px;font-weight:800;font-size:22px;letter-spacing:3px;transform:rotate(-4deg)}
+.stamp.paid{color:var(--ok)}.stamp.unpaid,.stamp.cancelled{color:var(--bad)}
+.ticket .due{text-align:center;font-size:13px;font-weight:600;color:var(--bad)}
+@media print{.pt-stamp.ok{border-color:#1f8a5b;color:#1f8a5b}}
+
+</style>
+</head>
+<body>
+<div class="app">
+  <button class="theme" id="themeBtn" aria-label="Switch to dark mode">🌙</button>
+  <header id="top" hidden>
+    <button class="back" id="backBtn" aria-label="Go back">‹ Back</button>
+    <div class="steps"><span id="stepLabel"></span><div class="bar"><i id="barFill"></i></div></div>
+  </header>
+
+  <main>
+    <!-- 1. SEARCH -->
+    <section id="s1" class="screen">
+      <div class="hero"><h1>SafarGo</h1><p>Book your bus in under a minute.</p></div>
+      <div class="card">
+        <label><span>From <span class="req" aria-hidden="true">*</span></span><select id="from"></select></label>
+        <button class="swap" id="swap" aria-label="Swap cities">⇅</button>
+        <label><span>To <span class="req" aria-hidden="true">*</span></span><select id="to"></select></label>
+        <label><span>Travel date <span class="req" aria-hidden="true">*</span></span><input type="date" id="date"></label>
+        <label><span>Passengers <span class="req" aria-hidden="true">*</span></span><select id="pax"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+        <label><span>Travelling as <span class="req" aria-hidden="true">*</span></span><select id="gender"><option value="">Select</option><option value="Female">Female (ladies seats)</option><option value="Male">Male (general seats)</option><option value="Family">Family / mixed group (any seats)</option></select></label>
+        <small class="note"><span class="req">*</span> Required field</small>
+        <small class="err" id="e1"></small>
+        <button class="btn" id="searchBtn">Search buses</button>
+        <button class="link" id="manageLink">Already booked? Manage or cancel a booking</button>
+      </div>
+    </section>
+
+    <!-- 2. RESULTS -->
+    <section id="s2" class="screen">
+      <h2 id="routeTitle"></h2><p class="sub" id="routeSub"></p>
+      <div class="chips"><button class="chip on" data-sort="price">Cheapest</button><button class="chip" data-sort="time">Earliest</button></div>
+      <div id="busList"></div>
+    </section>
+
+    <!-- 3. SEATS -->
+    <section id="s3" class="screen">
+      <h2>Choose your seat</h2><p class="sub" id="seatSub"></p>
+      <div class="legend"><span><i class="seat"></i>Available</span><span><i class="seat sel"></i>Yours</span><span><i class="seat booked"></i>Booked</span><span><i class="seat ladies"></i>♀ Ladies only</span><span><i class="seat blocked"></i>Not for you</span></div>
+      <div class="bus"><div class="driver">🚌 Front</div><div id="seatGrid"></div></div>
+      <div class="summary"><span id="seatInfo"></span><b id="seatTotal"></b></div>
+      <button class="btn" id="seatNext" disabled>Continue</button>
+    </section>
+
+    <!-- 4. PASSENGER -->
+    <section id="s4" class="screen">
+      <h2>Passenger details</h2><p class="sub" id="paxSub"></p>
+      <div class="card">
+        <label><span>Full name <span class="req" aria-hidden="true">*</span></span><input id="pname" placeholder="e.g. Ali Khan" autocomplete="name"></label><small class="err" id="e-name"></small>
+        <label><span>Mobile number <span class="req" aria-hidden="true">*</span></span><input id="pphone" placeholder="03XXXXXXXXX" inputmode="numeric" maxlength="11"></label><small class="err" id="e-phone"></small>
+        <label><span>Email <span class="req" aria-hidden="true">*</span></span><input id="pmail" type="email" placeholder="you@example.com"></label><small class="err" id="e-mail"></small>
+        <small class="note"><span class="req">*</span> Required field</small>
+        <button class="btn" id="detailsNext">Continue to payment</button>
+      </div>
+    </section>
+
+    <!-- 5. PAYMENT -->
+    <section id="s5" class="screen">
+      <h2>Payment</h2>
+      <div class="summary col" id="fare"></div>
+      <div class="pay" id="payList">
+        <label class="opt on"><input type="radio" name="pay" value="Card" checked>💳 Debit / Credit card</label>
+        <label class="opt"><input type="radio" name="pay" value="JazzCash">📱 JazzCash</label>
+        <label class="opt"><input type="radio" name="pay" value="Easypaisa">🏦 Easypaisa</label>
+        <label class="opt"><input type="radio" name="pay" value="Cash at counter">💵 Pay at counter</label>
+      </div>
+      <button class="btn" id="payBtn">Pay now</button>
+    </section>
+
+    <!-- 6. TICKET -->
+    <section id="s6" class="screen">
+      <div class="done">✓</div>
+      <h2 class="c">Booking confirmed</h2><p class="sub c">Show this ticket when you board.</p>
+      <div class="ticket" id="ticket"></div>
+      <button class="btn ghost" id="printBtn">🖨 Print ticket</button>
+      <button class="btn danger" id="cancelBtn">Cancel booking</button>
+      <button class="btn" id="againBtn">Book another trip</button>
+    </section>
+
+    <!-- 7. MANAGE / CANCEL BOOKING -->
+    <section id="s7" class="screen">
+      <button class="link" id="homeBtn">‹ Back to search</button>
+      <h2>Manage booking</h2><p class="sub">Enter your booking ID and mobile number to view or cancel your trip.</p>
+      <div class="card">
+        <label><span>Booking ID <span class="req" aria-hidden="true">*</span></span><input id="mid" placeholder="SG-123456"></label><small class="err" id="e-mid"></small>
+        <label><span>Mobile number <span class="req" aria-hidden="true">*</span></span><input id="mph" placeholder="03XXXXXXXXX" inputmode="numeric" maxlength="11"></label><small class="err" id="e-mph"></small>
+        <small class="note"><span class="req">*</span> Required field</small>
+        <button class="btn" id="findBtn">Find booking</button>
+      </div>
+      <div id="found"></div>
+    </section>
+  </main>
+  <div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="box"><h3 id="mTitle">Cancel this booking?</h3><div id="mBody"></div>
+      <div class="mbtns"><button class="btn ghost" id="keepBtn">Keep booking</button><button class="btn danger solid" id="confirmCancel">Yes, cancel</button></div></div>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+</div>
+<div id="printArea" aria-hidden="true"></div>
+<script>
+const $ = s => document.querySelector(s);
+const cities = ["Mithi","Hyderabad","Karachi","Sukkur","Multan","Lahore","Islamabad"];
+const buses = [
+  {id:1,name:"Daewoo Express",type:"AC Business",dep:"07:00 AM",arr:"01:30 PM",dur:"6h 30m",price:2400,o:1},
+  {id:2,name:"Faisal Movers",type:"AC Standard",dep:"09:30 AM",arr:"04:30 PM",dur:"7h",price:1900,o:2},
+  {id:3,name:"Skyways",type:"Non-AC",dep:"01:00 PM",arr:"09:00 PM",dur:"8h",price:1400,o:3},
+  {id:4,name:"Bilal Travels",type:"Sleeper",dep:"10:00 PM",arr:"06:30 AM",dur:"8h 30m",price:2800,o:4}
+];
+const state = {step:1, trip:{}, bus:null, seats:[], pax:{}, pay:"Card"};
+const stepNo = {2:2,3:3,4:4,5:5};
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+function loadB(){ try{ return JSON.parse(localStorage.getItem("sg_bookings")) || []; }catch(e){ return []; } }
+let bookings = loadB();
+function saveB(){ try{ localStorage.setItem("sg_bookings", JSON.stringify(bookings)); }catch(e){} }
+
+// ---------- helpers ----------
+function toast(msg, bad){
+  const t = $("#toast"); t.textContent = msg; t.className = "show" + (bad ? " bad" : "");
+  clearTimeout(toast.id); toast.id = setTimeout(() => t.className = "", 2600);
+}
+function go(n){
+  state.step = n;
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $("#s" + n).classList.add("active");
+  const showHeader = n >= 2 && n <= 5;
+  $("#top").hidden = !showHeader;
+  if(showHeader){ $("#stepLabel").textContent = `Step ${stepNo[n]} of 5`; $("#barFill").style.width = stepNo[n] * 20 + "%"; }
+  window.scrollTo(0, 0);
+}
+function fare(bus){ // sample price: depends on the route
+  const f = 1 + ((state.trip.from.charCodeAt(0) + state.trip.to.charCodeAt(0)) % 5) / 5;
+  return Math.round(bus.price * f / 50) * 50;
+}
+function isLadies(n){ return parseInt(n) <= 3 && /[AB]$/.test(n); }
+function canUse(name){ const g = state.trip.gender; return g === "Family" || isLadies(name) === (g === "Female"); }
+function isBooked(bus, i){ // sample bookings + real bookings made here (cancelling releases the seat)
+  const name = (Math.floor(i / 4) + 1) + "ABCD"[i % 4], t = state.trip;
+  return (i * bus.id * 13 + 7) % 5 === 0 || bookings.some(b => b.status === "Confirmed" && b.busId === bus.id &&
+    b.date === t.date && b.from === t.from && b.to === t.to && b.seats.includes(name));
+}
+function busStatus(b){ // "" means the bus can be booked
+  if(hoursToDeparture({dep: b.dep, date: state.trip.date}) <= 0) return "Already departed";
+  return seatsLeft(b) < state.trip.pax ? "Not enough seats" : "";
+}
+function seatsLeft(bus){ // only counts seats this passenger is allowed to take
+  let c = 0;
+  for(let i = 0; i < 40; i++){ const name = (Math.floor(i / 4) + 1) + "ABCD"[i % 4]; if(!isBooked(bus, i) && canUse(name)) c++; }
+  return c;
+}
+function withLoading(btn, label, done){
+  btn.classList.add("load"); btn.disabled = true; btn.textContent = label;
+  setTimeout(() => { btn.classList.remove("load"); btn.disabled = false; done(); }, 800);
+}
+
+// ---------- 1. search ----------
+cities.forEach(c => { $("#from").add(new Option(c, c)); $("#to").add(new Option(c, c)); });
+$("#to").value = "Karachi";
+function todayStr(){ const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+$("#date").min = $("#date").value = todayStr();
+$("#swap").onclick = () => { const f = $("#from").value; $("#from").value = $("#to").value; $("#to").value = f; };
+$("#searchBtn").onclick = () => {
+  const from = $("#from").value, to = $("#to").value, date = $("#date").value, gender = $("#gender").value;
+  if(from === to){ $("#e1").textContent = "Pick two different cities."; return; }
+  if(!date){ $("#e1").textContent = "Choose a travel date."; return; }
+  if(date < todayStr()){ $("#e1").textContent = "Travel date cannot be in the past."; return; }
+  if(!gender){ $("#e1").textContent = "Select who is travelling."; return; }
+  $("#e1").textContent = "";
+  state.trip = {from, to, date, gender, pax: +$("#pax").value};
+  withLoading($("#searchBtn"), "Searching", () => { $("#searchBtn").textContent = "Search buses"; renderBuses("price"); go(2); });
+};
+
+// ---------- 2. results ----------
+function renderBuses(sort){
+  const t = state.trip;
+  $("#routeTitle").textContent = `${t.from} → ${t.to}`;
+  $("#routeSub").textContent = `${new Date(t.date).toDateString()} · ${t.pax} passenger${t.pax > 1 ? "s" : ""}`;
+  const list = [...buses].sort((a, b) => sort === "price" ? fare(a) - fare(b) : a.o - b.o);
+  $("#busList").innerHTML = list.map(b => `
+    <div class="bus-card${busStatus(b) === "Already departed" ? " gone" : ""}">
+      <div class="row"><b>${b.name}</b><span class="tag">${b.type}</span></div>
+      <div class="times">${b.dep} → ${b.arr} <small>(${b.dur})</small></div>
+      <div class="row"><div><div class="price">Rs. ${fare(b)}</div><div class="left">${busStatus(b) === "Already departed" ? "Departed" : seatsLeft(b) + " seats left"}</div></div>
+      <button class="sel-btn" data-id="${b.id}" ${busStatus(b) ? "disabled" : ""}>${busStatus(b) || "Select seats"}</button></div>
+    </div>`).join("");
+}
+document.querySelectorAll(".chip").forEach(c => c.onclick = () => {
+  document.querySelectorAll(".chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); renderBuses(c.dataset.sort);
+});
+$("#busList").onclick = e => {
+  const id = e.target.dataset.id; if(!id) return;
+  state.bus = buses.find(b => b.id == id); state.seats = []; renderSeats(); go(3);
+};
+
+// ---------- 3. seats ----------
+function renderSeats(){
+  const b = state.bus, need = state.trip.pax;
+  $("#seatSub").textContent = `${b.name} · select ${need} seat${need > 1 ? "s" : ""} · ${{Female:"♀ ladies seats only", Male:"general seats only", Family:"all seats (family / mixed group)"}[state.trip.gender]}`;
+  let html = "";
+  for(let r = 0; r < 10; r++){
+    ["A","B","","C","D"].forEach((l, k) => {
+      if(!l){ html += "<span></span>"; return; }
+      const i = r * 4 + (k > 2 ? k - 1 : k), name = (r + 1) + l;
+      const cls = isBooked(b, i) ? "booked" : state.seats.includes(name) ? "sel" : "";
+      const lad = isLadies(name) ? " ladies" : "";
+      const blocked = cls !== "booked" && !canUse(name);
+      html += `<button class="seat ${cls}${lad}${blocked ? " blocked" : ""}" data-s="${name}" ${cls === "booked" ? "disabled aria-label='Seat " + name + " booked'" : blocked ? "aria-disabled='true' aria-label='Seat " + name + " not available for you'" : ""}>${name}</button>`;
+    });
+  }
+  $("#seatGrid").innerHTML = html; updateSeatBar();
+}
+function updateSeatBar(){
+  const need = state.trip.pax, n = state.seats.length;
+  $("#seatInfo").textContent = n ? "Seats: " + state.seats.join(", ") : `Select ${need} seat${need > 1 ? "s" : ""}`;
+  $("#seatTotal").textContent = "Rs. " + fare(state.bus) * n;
+  $("#seatNext").disabled = n !== need;
+}
+$("#seatGrid").onclick = e => {
+  const s = e.target.dataset.s; if(!s) return;
+  if(!canUse(s)) return toast(state.trip.gender === "Female" ? "That seat is for male passengers. Please choose a ♀ ladies seat." : "Ladies-only seat. Please choose another seat.", true);
+  const i = state.seats.indexOf(s);
+  if(i > -1) state.seats.splice(i, 1);
+  else if(state.seats.length < state.trip.pax) state.seats.push(s);
+  else return toast(`You can only pick ${state.trip.pax} seat(s). Tap a chosen seat to remove it.`, true);
+  renderSeats();
+};
+$("#seatNext").onclick = () => { $("#paxSub").textContent = `Seats ${state.seats.join(", ")} · ${state.bus.name}`; go(4); };
+
+// ---------- 4. passenger ----------
+function checkEmail(m){
+  if(!m) return "Email is required.";
+  if(!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(m)) return "Enter a valid email, like name@example.com.";
+  const dom = m.split("@")[1].toLowerCase();
+  const typos = {"gmail.co":"gmail.com","gmail.con":"gmail.com","gmail.cm":"gmail.com","gmial.com":"gmail.com","gmai.com":"gmail.com",
+    "yahoo.co":"yahoo.com","yahoo.con":"yahoo.com","hotmail.co":"hotmail.com","hotmail.con":"hotmail.com","outlook.co":"outlook.com"};
+  if(typos[dom]) return `Did you mean ${m.split("@")[0]}@${typos[dom]}?`;
+  return "";
+}
+$("#detailsNext").onclick = () => {
+  const name = $("#pname").value.trim(), phone = $("#pphone").value.trim(), mail = $("#pmail").value.trim();
+  const e = {
+    name: !name ? "Full name is required." : name.length < 3 ? "Enter your full name." : "",
+    phone: !phone ? "Mobile number is required." : /^03\d{9}$/.test(phone) ? "" : "Enter 11 digits starting with 03.",
+    mail: checkEmail(mail)
+  };
+  [["name","pname"],["phone","pphone"],["mail","pmail"]].forEach(([k, id]) => {
+    $("#e-" + k).textContent = e[k]; $("#" + id).classList.toggle("invalid", !!e[k]);
+  });
+  if(e.name || e.phone || e.mail) return toast("Please fix the highlighted fields.", true);
+  state.pax = {name, phone, mail}; renderFare(); go(5);
+};
+
+// ---------- 5. payment ----------
+function updatePayBtn(){ $("#payBtn").textContent = state.pay === "Cash at counter" ? `Confirm booking (pay Rs. ${state.total} at counter)` : "Pay Rs. " + state.total; }
+function renderFare(){
+  const base = fare(state.bus) * state.seats.length, fee = 50, total = base + fee;
+  state.total = total;
+  $("#fare").innerHTML = `<div><span>${state.trip.from} → ${state.trip.to}</span><span>${state.seats.join(", ")}</span></div>
+    <div><span>Fare (${state.seats.length} seat${state.seats.length > 1 ? "s" : ""})</span><span>Rs. ${base}</span></div>
+    <div><span>Service fee</span><span>Rs. ${fee}</span></div>
+    <div><b>Total</b><b>Rs. ${total}</b></div>`;
+  updatePayBtn();
+}
+$("#payList").onchange = e => {
+  state.pay = e.target.value; updatePayBtn();
+  document.querySelectorAll(".opt").forEach(o => o.classList.toggle("on", o.querySelector("input").checked));
+};
+$("#payBtn").onclick = () => withLoading($("#payBtn"), "Processing", () => { renderTicket(); go(6); toast(state.pay === "Cash at counter" ? `Booking confirmed. Please pay Rs. ${state.total} at the counter.` : "Payment successful. Your seats are booked."); });
+
+// ---------- 6. ticket + cancel booking ----------
+function ticketRows(b){
+  const cancelled = b.status === "Cancelled", unpaid = b.pay === "Cash at counter";
+  const stamp = `<div class="stamp-wrap"><span class="stamp ${cancelled ? "cancelled" : unpaid ? "unpaid" : "paid"}">${cancelled ? "CANCELLED" : unpaid ? "UNPAID" : "PAID"}</span></div>`;
+  const due = !cancelled && unpaid ? `<p class="due">Please pay Rs. ${b.total} at the counter before boarding.</p>` : "";
+  const st = b.status === "Cancelled" ? '<b class="badge bad">Cancelled</b>' : '<b class="badge ok">Confirmed</b>';
+  const rows = [["Booking ID", `<b>${b.id}</b>`],["Status", st],["Passenger", `<b>${esc(b.name)}</b>`],
+    ["Route", `<b>${esc(b.from)} → ${esc(b.to)}</b>`],["Date", `<b>${new Date(b.date).toDateString()}</b>`],
+    ["Bus", `<b>${b.bus}</b>`],["Departure", `<b>${b.dep}</b>`],["Seats", `<b>${b.seats.join(", ")}</b>`],
+    ["Payment method", `<b>${b.pay}</b>`],["Payment status", unpaid ? '<b class="badge bad">Unpaid</b>' : '<b class="badge ok">Paid</b>'],
+    [!cancelled && unpaid ? "Amount due" : "Total", `<b>Rs. ${b.total}</b>`]];
+  if(b.status === "Cancelled") rows.push(["Refund", `<b>${b.pay === "Cash at counter" ? "Nothing to refund" : "Rs. " + b.refund}</b>`]);
+  return stamp + due + rows.map(r => `<div><span>${r[0]}</span>${r[1]}</div>`).join("");
+}
+function renderTicket(){
+  const t = state.trip, bus = state.bus;
+  const bk = {id:"SG-" + Math.floor(100000 + Math.random() * 900000), name:state.pax.name, phone:state.pax.phone,
+    from:t.from, to:t.to, date:t.date, busId:bus.id, bus:`${bus.name} (${bus.type})`, dep:bus.dep,
+    seats:[...state.seats], pay:state.pay, base:fare(bus) * state.seats.length, total:state.total, status:"Confirmed"};
+  bookings.push(bk); saveB(); showBooking(bk);
+}
+function showBooking(b){
+  const ok = b.status === "Confirmed";
+  $("#s6 .done").className = "done" + (ok ? "" : " bad"); $("#s6 .done").textContent = ok ? "✓" : "✕";
+  $("#s6 h2").textContent = ok ? "Booking confirmed" : "Booking cancelled";
+  $("#s6 .sub").textContent = ok ? "Show this ticket when you board. You can cancel it before departure." : "Your seats have been released.";
+  $("#ticket").className = "ticket" + (ok ? "" : " cancelled"); $("#ticket").innerHTML = ticketRows(b);
+  $("#cancelBtn").hidden = !ok; $("#cancelBtn").dataset.cancel = b.id; $("#printBtn").dataset.print = b.id; $("#printBtn").hidden = !ok;
+}
+function hoursToDeparture(b){
+  const m = b.dep.match(/(\d+):(\d+) (AM|PM)/), d = new Date(b.date + "T00:00:00");
+  d.setHours(+m[1] % 12 + (m[3] === "PM" ? 12 : 0), +m[2]);
+  return (d - new Date()) / 36e5;
+}
+function refundInfo(b){
+  const hrs = hoursToDeparture(b), pct = hrs >= 24 ? 90 : hrs >= 6 ? 50 : 0, paidOnline = b.pay !== "Cash at counter";
+  return {hrs, pct, paidOnline, amount: paidOnline ? Math.round(b.base * pct / 100) : 0};
+}
+function openCancel(id){
+  const b = bookings.find(x => x.id === id); if(!b || b.status !== "Confirmed") return;
+  const r = refundInfo(b);
+  if(r.hrs <= 0) return toast(`This bus left at ${b.dep} on ${new Date(b.date).toDateString()}, so it can't be cancelled.`, true);
+  state.cancelId = id;
+  $("#mBody").innerHTML = `<p class="sub" style="margin-bottom:0">${esc(b.from)} → ${esc(b.to)} · ${new Date(b.date).toDateString()} · seats ${b.seats.join(", ")}</p>
+    <ul><li>24+ hours before departure: 90% of the fare is refunded</li><li>6 to 24 hours before: 50% is refunded</li><li>Under 6 hours: no refund</li><li>The Rs. 50 service fee is not refundable</li></ul>
+    <div class="refund"><span>Bus leaves in about ${Math.floor(r.hrs)} hours</span><b>${r.paidOnline ? `Your refund: Rs. ${r.amount} (${r.pct}%)` : "You chose to pay at the counter, so there is nothing to refund."}</b></div>`;
+  $("#modal").hidden = false; $("#keepBtn").focus();
+}
+function closeModal(){ $("#modal").hidden = true; }
+$("#confirmCancel").onclick = () => withLoading($("#confirmCancel"), "Cancelling", () => {
+  $("#confirmCancel").textContent = "Yes, cancel";
+  const b = bookings.find(x => x.id === state.cancelId), r = refundInfo(b);
+  b.status = "Cancelled"; b.refund = r.amount; saveB(); closeModal();
+  if(state.step === 6) showBooking(b); else renderFound(b);
+  toast(r.amount ? `Booking cancelled. Rs. ${r.amount} will be refunded in 3-5 working days.` : "Booking cancelled.");
+});
+$("#keepBtn").onclick = closeModal;
+$("#modal").onclick = e => { if(e.target.id === "modal") closeModal(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") closeModal(); });
+document.addEventListener("click", e => {
+  const d = e.target.dataset || {};
+  if(d.cancel) openCancel(d.cancel);
+  if(d.print) printTicket(d.print);
+});
+function printTicket(id){
+  const b = bookings.find(x => x.id === id); if(!b) return;
+  const cancelled = b.status === "Cancelled", unpaid = b.pay === "Cash at counter", row = (l, v) => `<div><span>${l}</span><b>${v}</b></div>`;
+  $("#printArea").innerHTML = `<div class="pt">
+    <div class="pt-head"><b>SafarGo</b><span>E-TICKET</span></div>
+    <div class="pt-stamp ${cancelled || unpaid ? "bad" : "ok"}">${cancelled ? "CANCELLED" : unpaid ? "UNPAID" : "PAID"}</div>
+    <div class="pt-route">${esc(b.from)} → ${esc(b.to)}</div>
+    <div class="pt-id">Booking ID: ${b.id}</div>
+    <div class="pt-grid">${row("Passenger", esc(b.name))}${row("Mobile", b.phone)}${row("Date", new Date(b.date).toDateString())}${row("Departure", b.dep)}${row("Bus", b.bus)}${row("Seats", b.seats.join(", "))}${row("Payment method", b.pay)}${row("Payment status", unpaid ? "Unpaid" : "Paid")}${row(!cancelled && unpaid ? "Amount due" : "Total", "Rs. " + b.total)}${cancelled ? row("Refund", b.pay === "Cash at counter" ? "Nothing to refund" : "Rs. " + b.refund) : ""}</div>
+    <ul class="pt-note">${!cancelled && unpaid ? `<li><b>Payment of Rs. ${b.total} is due at the counter before boarding.</b></li>` : ""}<li>Arrive at the bus terminal 30 minutes before departure.</li><li>Carry a valid CNIC and show this ticket (printed or on your phone).</li><li>Cancellations: 90% refund 24+ hours before departure, 50% for 6 to 24 hours, none under 6 hours. The Rs. 50 service fee is not refundable.</li></ul>
+    <div class="pt-foot">Printed on ${new Date().toLocaleString()} · Thank you for travelling with SafarGo</div></div>`;
+  const old = document.title; document.title = "SafarGo-Ticket-" + b.id;
+  window.print(); document.title = old;
+}
+
+// ---------- 7. manage booking ----------
+function renderFound(b){
+  $("#found").innerHTML = `<div class="ticket${b.status === "Confirmed" ? "" : " cancelled"}" style="margin-top:16px">${ticketRows(b)}</div>` +
+    (b.status === "Confirmed" ? `<button class="btn ghost" data-print="${b.id}">🖨 Print ticket</button><button class="btn danger" data-cancel="${b.id}">Cancel booking</button>` : "");
+}
+$("#manageLink").onclick = () => { $("#found").innerHTML = ""; go(7); };
+$("#homeBtn").onclick = () => go(1);
+$("#findBtn").onclick = () => {
+  const id = $("#mid").value.trim().toUpperCase(), ph = $("#mph").value.trim();
+  $("#e-mid").textContent = id ? "" : "Booking ID is required."; $("#e-mph").textContent = ph ? "" : "Mobile number is required.";
+  $("#found").innerHTML = ""; if(!id || !ph) return;
+  const b = bookings.find(x => x.id === id && x.phone === ph);
+  if(!b) $("#found").innerHTML = '<div class="err-box">No booking found. Check your booking ID and mobile number.</div>';
+  else renderFound(b);
+};
+$("#againBtn").onclick = () => { state.seats = []; go(1); };
+
+// ---------- dark mode ----------
+function setTheme(t){
+  document.documentElement.dataset.theme = t;
+  $("#themeBtn").textContent = t === "dark" ? "☀️" : "🌙";
+  $("#themeBtn").setAttribute("aria-label", t === "dark" ? "Switch to light mode" : "Switch to dark mode");
+  try{ localStorage.setItem("theme", t); }catch(e){}
+}
+let savedTheme = null; try{ savedTheme = localStorage.getItem("theme"); }catch(e){}
+setTheme(savedTheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+$("#themeBtn").onclick = () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+
+// ---------- back button ----------
+$("#backBtn").onclick = () => go(state.step - 1);
+go(1);
+
+</script>
+</body>
+</html>
